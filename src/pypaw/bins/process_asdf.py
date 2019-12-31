@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+#import mpi4py
+#mpi4py.rc.recv_mprobe = False
 
 from pypaw import ProcASDF
 

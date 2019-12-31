@@ -1,5 +1,6 @@
 import sys
 from setuptools import setup
+from setuptools import find_packages
 from setuptools.command.test import test as TestCommand
 
 
@@ -46,7 +47,9 @@ setup(
     author="Wenjie Lei",
     author_email="lei@princeton.edu",
     url="https://github.com/wjlei1990/pypaw",
-    packages=["pypaw"],
+    packages=find_packages("src"),
+    package_dir={"": "src"},
+    include_package_data=True,
     tests_require=['pytest'],
     cmdclass={'test': PyTest},
     zip_safe=False,
@@ -69,7 +72,7 @@ setup(
         "seismology", "tomography", "adjoint", "signal", "inversion", "window"
     ],
     install_requires=[
-        "numpy", "obspy==1.0.3", "flake8>=3.0", "pytest", "nose",
+        "numpy", "obspy", "flake8>=3.0", "pytest", "nose",
         "future>=0.14.1", "pytomo3d", "pyasdf", "pyyaml", "spaceweight"
     ],
     entry_points={

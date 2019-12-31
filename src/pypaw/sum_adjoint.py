@@ -38,7 +38,7 @@ def validate_path(path):
 
     if len(path["input_file"]) == 0:
         print("No input information provided in path")
-    for finfo in path["input_file"].itervalues():
+    for finfo in path["input_file"].values():
         asdf_file = finfo["asdf_file"]
         weight_file = finfo["weight_file"]
         if not os.path.exists(asdf_file):
@@ -208,7 +208,7 @@ class PostAdjASDF(object):
         is allowed
         """
         asdf_files = []
-        for file_info in self.path["input_file"].itervalues():
+        for file_info in self.path["input_file"].values():
             asdf_files.append(file_info["asdf_file"])
 
         self.events, self.origin = \
@@ -222,7 +222,7 @@ class PostAdjASDF(object):
         Sum different asdf files
         """
         print("="*30 + "\nSumming asdf files...")
-        for period, _file_info in self.path["input_file"].iteritems():
+        for period, _file_info in self.path["input_file"].items():
             filename = _file_info["asdf_file"]
             ds = ASDFDataSet(filename, mode='r')
             weight_file = _file_info["weight_file"]

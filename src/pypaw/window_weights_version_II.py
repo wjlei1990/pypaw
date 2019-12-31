@@ -83,12 +83,12 @@ def validate_path(path):
     err = 0
     logger.info("Validate input path")
     input_info = path["input"]
-    for e, einfo in input_info.iteritems():
+    for e, einfo in input_info.items():
         cmtfile = einfo["cmtfile"]
         err += _file_not_exists(cmtfile)
         stationfile = einfo["stationfile"]
         err += _file_not_exists(stationfile)
-        for p, pinfo in einfo["period_info"].iteritems():
+        for p, pinfo in einfo["period_info"].items():
             window_file = pinfo["window_file"]
             err += _file_not_exists(window_file)
             if "output_file" not in pinfo:
@@ -137,7 +137,7 @@ def extract_source_location(input_info):
     """
     src_info = {}
     logger_block("Extracting source location information")
-    for e, einfo in input_info.iteritems():
+    for e, einfo in input_info.items():
         cmtfile = einfo["cmtfile"]
         cat = obspy.read_events(cmtfile, format="CMTSOLUTION")
         src_info[e] = cat
@@ -208,7 +208,7 @@ def calculate_receiver_weights_asdf_one_event(cat, event_info, param):
     src_info = {"latitude": origin.latitude, "longitude": origin.longitude,
                 "depth_in_m": origin.depth}
     # determine receiver weightings for each asdf file
-    for period, period_info in event_info["period_info"].iteritems():
+    for period, period_info in event_info["period_info"].items():
         period_idx += 1
         logger.info("-" * 15 + "[%d/%d]Period band: %s"
                     % (period_idx, nperiods, period) + "-" * 15)
@@ -233,9 +233,9 @@ def get_event_category_window_counts(path_info):
     print("Reading window files to get events cateogry window counts")
     t1 = time.time()
 
-    for ev, evinfo in path_info.iteritems():
+    for ev, evinfo in path_info.items():
         cat_wcounts[ev] = {}
-        for pb, pbinfo in evinfo["period_info"].iteritems():
+        for pb, pbinfo in evinfo["period_info"].items():
             winfile = pbinfo["window_file"]
             windows = load_json(winfile)
             _, _wcounts = calculate_receiver_window_counts(windows)
@@ -308,12 +308,12 @@ def normalize_category_weights(sumv):
 def combine_receiver_and_category_weights(
         rec_weights, cat_weights, src_weights):
     weights = {}
-    for ev, ev_info in rec_weights.iteritems():
+    for ev, ev_info in rec_weights.items():
         srcw = src_weights[ev]
         weights[ev] = {}
-        for pb, pb_info in ev_info.iteritems():
+        for pb, pb_info in ev_info.items():
             weights[ev][pb] = {}
-            for comp, comp_info in pb_info.iteritems():
+            for comp, comp_info in pb_info.items():
                 catw = cat_weights[pb][comp]
                 for chan_id in comp_info:
                     recw = comp_info[chan_id]
@@ -330,8 +330,8 @@ def analyze_category_weights(cat_weights, logfile):
     log = {"category_weights": cat_weights}
     maxw = 0
     minw = 10**9
-    for _p, _pw in cat_weights.iteritems():
-        for _comp, _compw in _pw.iteritems():
+    for _p, _pw in cat_weights.items():
+        for _comp, _compw in _pw.items():
             if _compw > maxw:
                 maxw = _compw
             if _compw < minw:
@@ -359,8 +359,8 @@ def analyze_overall_weights(weights, rec_wcounts, log_prefix):
     nwins_array = []
     weights_array = []
     # validate the sum of all weights is 1
-    for _p, _pw in weights.iteritems():
-        for _chan, _chanw in _pw.iteritems():
+    for _p, _pw in weights.items():
+        for _chan, _chanw in _pw.items():
             comp = _chan.split(".")[-1]
             nwins_array.append(rec_wcounts[_p][comp][_chan])
             weights_array.append(_chanw["weight"])
@@ -415,11 +415,11 @@ class WindowWeight(object):
 
     def analyze_receiver_weights(self, logfile):
         log = {}
-        for _p, _pw in self.weights.iteritems():
+        for _p, _pw in self.weights.items():
             log[_p] = {}
             maxw = defaultdict(lambda: 0)
             minw = defaultdict(lambda: 10**9)
-            for _chan, _chanw in _pw.iteritems():
+            for _chan, _chanw in _pw.items():
                 comp = _chan.split(".")[-1]
                 if _chanw["weight"] > maxw[comp]:
                     maxw[comp] = _chanw["weight"]
@@ -453,8 +453,8 @@ class WindowWeight(object):
 
     def dump_weights(self):
         """ dump weights to files """
-        for ev, ev_info in self.weights.iteritems():
-            for period, period_info in ev_info.iteritems():
+        for ev, ev_info in self.weights.items():
+            for period, period_info in ev_info.items():
                 _info = self.path['input'][ev]["period_info"]
                 outputfn = _info[period]["output_file"]
                 # print("Final weights dumped to: %s" % outputfn)
@@ -474,7 +474,7 @@ class WindowWeight(object):
         input_info = self.path["input"]
         nevents = len(input_info)
         idx = 0
-        for ev, evinfo in input_info.iteritems():
+        for ev, evinfo in input_info.items():
             idx += 1
             logger.info("=" * 15 + "[%d/%d]Event: %s"
                         % (idx, nevents, ev) + "=" * 15)
@@ -502,9 +502,9 @@ class WindowWeight(object):
         def _get_max_and_min(dictv):
             minv = 9999999999
             maxv = -1
-            for e, einfo in dictv.iteritems():
-                for p, pinfo in einfo.iteritems():
-                    for c, cinfo in pinfo.iteritems():
+            for e, einfo in dictv.items():
+                for p, pinfo in einfo.items():
+                    for c, cinfo in pinfo.items():
                         if minv > cinfo:
                             minv = cinfo
                         if maxv < cinfo:

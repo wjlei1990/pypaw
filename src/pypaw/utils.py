@@ -31,7 +31,7 @@ def is_mpi_env():
     except ImportError:
         return False
 
-    if mpi4py.MPI.COMM_WORLD.size == 1 and mpi4py.MPI.COMM_WORLD.rank == 0:
+    if mpi4py.MPI.COMM_WORLD.size == 1:
         return False
 
     return True
@@ -192,7 +192,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args, **kwargs)
         time2 = time.time()
-        print '%s function took %0.3f s' % (f.func_name, (time2-time1))
+        print('%s function took %0.3f s' % (f.func_name, (time2-time1)))
         return ret
     return wrap
 

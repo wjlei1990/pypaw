@@ -52,7 +52,7 @@ def smart_transform_window(windows):
 
 def load_window_config(param):
     config_dict = {}
-    for key, value in param.iteritems():
+    for key, value in param.items():
         config_dict[key] = pyflex.Config(**value)
     return config_dict
 
@@ -178,7 +178,7 @@ class AdjPreASDF(ProcASDFBase):
                              % (window_param, window_param.keys,
                                 self.components))
         param_dict = {}
-        for key, value in window_param.iteritems():
+        for key, value in window_param.items():
             param_dict[key] = self._parse_yaml(value)
         return param_dict
 

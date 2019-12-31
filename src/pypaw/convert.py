@@ -70,7 +70,7 @@ def add_stationxml_to_asdf(ds, staxml_filelist, event=None,
             start_date = event_time - 300.0
         nstaxml = len(sta_dict)
         count = 0
-        for tag, value in sta_dict.iteritems():
+        for tag, value in sta_dict.items():
             count += 1
             inv = create_simple_inventory(
                 value[0], value[1], latitude=value[2], longitude=value[3],

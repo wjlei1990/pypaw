@@ -49,8 +49,8 @@ def update_overall_wcounts(overall_wcounts, period, one_file_results):
 
 def _validate_ratio(overall_wcounts, ratio):
     prods = []
-    for p, pinfo in overall_wcounts.iteritems():
-        for c, cinfo in pinfo.iteritems():
+    for p, pinfo in overall_wcounts.items():
+        for c, cinfo in pinfo.items():
             prods.append(cinfo * ratio[p][c])
 
     if not all([np.isclose(prods[0], _v) for _v in prods]):
@@ -64,17 +64,17 @@ def ensemble_default_weight_param_file(overall_wcounts, param, outputfile):
     """
     maxv = 0
     # find max first
-    for p, pinfo in overall_wcounts.iteritems():
-        for c, cinfo in pinfo.iteritems():
+    for p, pinfo in overall_wcounts.items():
+        for c, cinfo in pinfo.items():
             if cinfo > maxv:
                 maxv = cinfo
 
     raw_ratio = {}
     ratio = {}
-    for p, pinfo in overall_wcounts.iteritems():
+    for p, pinfo in overall_wcounts.items():
         ratio[str(p)] = {}
         raw_ratio[str(p)] = {}
-        for c, cinfo in pinfo.iteritems():
+        for c, cinfo in pinfo.items():
             _user_weight = param["user_weight_ratio"][p][c]
             # the raw ratio without user-definded weight
             # this is essentially window counts ratio
@@ -117,7 +117,7 @@ def stats_all_window_file(path, _verbose):
             print("period[%s]: %s" % (p, one_file_results))
             detailed_event_windows[e][p] = one_file_results
             period_total = 0
-            for comp, comp_counts in one_file_results.iteritems():
+            for comp, comp_counts in one_file_results.items():
                 period_total += comp_counts
             detailed_event_windows[e][p]["total"] = period_total
             event_total += period_total

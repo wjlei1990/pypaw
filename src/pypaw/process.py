@@ -15,6 +15,7 @@ import inspect
 from functools import partial
 from pytomo3d.signal.process import process_stream
 from .procbase import ProcASDFBase
+import pyasdf
 
 
 def check_param_keywords(param):
@@ -67,8 +68,11 @@ def update_param(event, param):
 class ProcASDF(ProcASDFBase):
 
     def __init__(self, path, param, verbose=False, debug=False):
-        ProcASDFBase.__init__(self, path, param, verbose=verbose,
-                              debug=debug)
+        #ProcASDFBase.__init__(self, path, param, verbose=verbose,
+        #                      debug=debug)
+        print("__init__")
+        super(ProcASDF, self).__init__(path, param, verbose=verbose,
+                                       debug=debug)
 
     def _validate_path(self, path):
         necessary_keys = ["input_asdf", "input_tag",
@@ -98,7 +102,9 @@ class ProcASDF(ProcASDFBase):
         # a incomplete asdf file, missing the "auxiliary_data"
         # part. So give it 'a' permission to add the part.
         # otherwise, it there will be errors
-        ds = self.load_asdf(input_asdf, mode='a')
+        #ds = self.load_asdf(input_asdf, mode='a')
+        #print(ds)
+        ds = pyasdf.ASDFDataSet(input_asdf)
 
         # update param based on event information
         update_param(ds.events[0], param)
@@ -108,7 +114,18 @@ class ProcASDF(ProcASDFBase):
         process_function = \
             partial(process_wrapper, param=param)
 
-        tag_map = {input_tag: output_tag}
-        ds.process(process_function, output_asdf, tag_map=tag_map)
+        for sta in ds.waveforms.list():
+            grp = ds.waveforms[sta]
+            inv = grp.StationXML
+            st = grp[input_tag]
+            print("-----------------------------------------")
+            print(inv)
+            print(st)
+            st_new = process_function(st, inv)
+            print("--> new...")
+            print(st_new)
+
+        #tag_map = {input_tag: output_tag}
+        #ds.process(process_function, output_asdf, tag_map=tag_map)
 
         del ds

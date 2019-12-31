@@ -19,7 +19,7 @@ from .utils import dump_json
 
 def write_measurements(content, filename):
     content_filter = dict(
-        (k, v) for k, v in content.iteritems() if v is not None)
+        (k, v) for k, v in content.items() if v is not None)
     dump_json(content_filter, filename)
 
 

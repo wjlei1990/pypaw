@@ -12,8 +12,8 @@ and parallel I/O so they are invisible to users.
 """
 from __future__ import (absolute_import, division, print_function)
 import os
-from pyasdf import ASDFDataSet
 from mpi4py import MPI
+from pyasdf import ASDFDataSet
 from .utils import smart_read_yaml, smart_read_json, is_mpi_env
 from .utils import smart_check_path, smart_remove_file, smart_mkdir
 
@@ -83,10 +83,12 @@ class ProcASDFBase(object):
         self.mpi_mode = is_mpi_env()
         if not self.mpi_mode:
             raise EnvironmentError(
-                "mpi environment required for parallel"
-                "running window selection")
+                "mpi environment required for parallel run")
         self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
+        self.rank = self.comm.rank
+
+        size = self.comm.size
+        print("detech env:", self.rank, size)
 
     def print_info(self, dict_obj, title=""):
         """
@@ -99,7 +101,7 @@ class ProcASDFBase(object):
         """
         def _print_subs(_dict, title):
             print("-"*10 + title + "-"*10)
-            sorted_dict = sorted(((v, k) for v, k in _dict.iteritems()))
+            sorted_dict = sorted(((v, k) for v, k in _dict.items()))
             for key, value in sorted_dict:
                 print("%s:  %s" % (key, value))
 

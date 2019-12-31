@@ -41,7 +41,7 @@ def main():
     # load measurements
     measure_files = paths["measure_files"]
     measurements = {}
-    for period, fn in measure_files.iteritems():
+    for period, fn in measure_files.items():
         measurements[period] = load_json(fn)
 
     outputfile = paths["output_file"]
