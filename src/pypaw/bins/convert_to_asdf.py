@@ -2,7 +2,7 @@
 
 import argparse
 
-from pypaw import ConvertASDF
+from pypaw.convert import ConvertASDF
 
 
 def main():

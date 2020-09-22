@@ -102,11 +102,11 @@ def stats_all_window_file(path, _verbose):
     overall_wcounts = {}
 
     print("=" * 10 + " Start counting windows " + "=" * 10)
-    eventlist = path["input"].keys()
+    eventlist = list(path["input"].keys())
     eventlist.sort()
     nevents = len(eventlist)
     for idxe, e in enumerate(eventlist):
-        period_bands = path["input"][e].keys()
+        period_bands = list(path["input"][e].keys())
         period_bands.sort()
         print("-" * 8 + "[%d/%d]%s" % (idxe, nevents, e) +
               "-" * 8)

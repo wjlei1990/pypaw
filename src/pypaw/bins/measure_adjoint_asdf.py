@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import matplotlib as mpl
-mpl.use('Agg')  # NOQA
+mpl.use('Agg')    # NOQA
 import argparse
-from pypaw import MeasureAdjointASDF
+from pypaw.measure_adjoint import MeasureAdjointASDFMPI
 
 
 def main():
@@ -15,8 +15,8 @@ def main():
                         help="verbose flag")
     args = parser.parse_args()
 
-    proc = MeasureAdjointASDF(args.path_file, args.params_file,
-                              verbose=args.verbose)
+    proc = MeasureAdjointASDFMPI(
+        args.path_file, args.params_file, verbose=args.verbose)
     proc.smart_run()
 
 

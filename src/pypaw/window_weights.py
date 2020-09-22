@@ -143,14 +143,14 @@ def extract_source_location(input_info):
         asdf_fn = period_info["asdf_file"]
         logger.info("Period band: %s -- asdf file: %s"
                     % (period, asdf_fn))
-        ds = ASDFDataSet(asdf_fn, mode='r')
+        ds = ASDFDataSet(asdf_fn, mode='r', mpi=False)
         asdf_events[period] = ds.events[0]
         del ds
 
     # check event information all the same across period bands
     check_events_consistent(asdf_events)
 
-    event_base = asdf_events[asdf_events.keys()[0]]
+    event_base = asdf_events[list(asdf_events.keys())[0]]
     origin = event_base.preferred_origin()
     src_info = {
         "latitude": origin.latitude, "longitude": origin.longitude,
@@ -175,6 +175,7 @@ def analyze_category_weights(cat_weights, logfile):
                 maxw = _compw
             if _compw < minw:
                 minw = _compw
+
     log["summary"] = {"maxw": maxw, "minw": minw,
                       "cond_num": maxw/minw}
 
@@ -228,10 +229,13 @@ def analyze_overall_weights(weights, rec_wcounts, log_prefix):
                 % (maxw, minw, max_over_min))
 
     logfile = log_prefix + ".weights.summary.json"
-    content = {"max_weights": maxw, "min_weights": minw,
-               "total_nwindows": np.sum(nwins_array),
-               "windows": nwindows, "receivers": nreceivers}
+    content = {"max_weights": maxw,
+               "min_weights": minw,
+               "total_nwindows": int(np.sum(nwins_array)),
+               "windows": int(nwindows),
+               "receivers": int(nreceivers)}
     logger.info("Overall log file: %s" % logfile)
+
     dump_json(content, logfile)
 
 

@@ -260,7 +260,7 @@ def calculate_category_weights(src_weights, path_info, param, logdir):
                     sumv[pb][comp] = 0
                 sumv[pb][comp] += srcw * cat_wcounts[ev][pb][comp]
 
-    print("\sum_{s} source_weight * N_{sc}: %s" % sumv)
+    print(r"\sum_{s} source_weight * N_{sc}: %s" % sumv)
 
     cat_weights, ratios = normalize_category_weights(sumv)
 

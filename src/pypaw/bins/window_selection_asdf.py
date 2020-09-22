@@ -2,7 +2,7 @@
 import matplotlib as mpl
 mpl.use('Agg')  # NOQA
 import argparse
-from pypaw import WindowASDF
+from pypaw.window import WindowASDFMPI
 
 
 def main():
@@ -15,8 +15,7 @@ def main():
                         help="verbose")
     args = parser.parse_args()
 
-    proc = WindowASDF(args.path_file, args.params_file,
-                      verbose=args.verbose)
+    proc = WindowASDFMPI(args.path_file, args.params_file)
     proc.smart_run()
 
 

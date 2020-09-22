@@ -11,14 +11,24 @@ Class that calculate adjoint source using asdf
 """
 from __future__ import (absolute_import, division, print_function)
 from functools import partial
+import sys
 import inspect
+
+from obspy import UTCDateTime
 import pyadjoint
 from pyasdf import ASDFDataSet
 from pytomo3d.adjoint import calculate_and_process_adjsrc_on_stream
+from pytomo3d.adjoint.adjoint_source import \
+    calculate_specfem_trace_starttime
 from pytomo3d.adjoint.process_adjsrc import process_adjoint
 from pytomo3d.adjoint.utils import reshape_adj
 from .procbase import ProcASDFBase
 from .utils import smart_read_json
+from .asdf_container import ASDFContainer, process_two_asdf_mpi, \
+    global_except_hook
+
+
+sys.excepthook = global_except_hook
 
 
 def check_process_config_keywords(config):
@@ -72,12 +82,17 @@ def load_adjoint_config(config, adjsrc_type):
     return ConfigClass(**config)
 
 
-def adjoint_wrapper(obsd_station_group, synt_station_group, config=None,
-                    obsd_tag=None, synt_tag=None, windows=None, event=None,
+def adjoint_wrapper(obsd_station_group,
+                    synt_station_group,
+                    config=None,
+                    obsd_tag=None,
+                    synt_tag=None,
+                    windows=None,
+                    event=None,
                     adj_src_type="multitaper_misfit",
                     postproc_param=None,
-                    figure_mode=False, figure_dir=False,
-                    adjoint_src_flag=True):
+                    figure_mode=False,
+                    figure_dir=False):
 
     """
     Function wrapper for pyasdf.
@@ -106,9 +121,6 @@ def adjoint_wrapper(obsd_station_group, synt_station_group, config=None,
         2) "multitaper_misfit"
         3) "waveform_misfit"
     :type adj_src_type: st
-    :param adjoint_src_flag: calcualte adjoint source, put this to true.
-        If false, only make measurements but no adjoint sources.
-    :type adjoint_src_flag: bool
     :param figure_mode: plot figures for adjoint source or not
     :type figure_mode: bool
     :param figure_dir: output figure directory
@@ -127,10 +139,12 @@ def adjoint_wrapper(obsd_station_group, synt_station_group, config=None,
     if not hasattr(obsd_station_group, "StationXML"):
         print("Missing tag 'STATIONXML' from obsd_station_group %s. Skipped" %
               (obsd_tag, obsd_station_group._station_name))
+        return
 
     try:
         window_sta = windows[obsd_station_group._station_name]
-    except:
+    except Exception as exp:
+        print("No window selected for station: {}".format(exp))
         return
 
     observed = getattr(obsd_station_group, obsd_tag)
@@ -147,10 +161,64 @@ def adjoint_wrapper(obsd_station_group, synt_station_group, config=None,
     return _final
 
 
+def adjoint_wrapper_2(
+        obsd_station_group,
+        synt_station_group,
+        config=None,
+        obsd_tag=None,
+        synt_tag=None,
+        windows=None,
+        event=None,
+        adj_src_type="multitaper_misfit",
+        postproc_param=None,
+        figure_mode=False,
+        figure_dir=False):
+    """
+    For use in process_two_files_mpi in pypaw.asdf_container
+
+    station group are stored as dict.
+    """
+    # Make sure everything thats required is there.
+    if obsd_tag not in obsd_station_group:
+        print("Missing tag '%s' from obsd_station_group %s. Skipped." %
+              (obsd_tag, obsd_station_group["_station_name"]))
+        return
+    if synt_tag not in synt_station_group:
+        print("Missing tag '%s' from synt_station_group %s. Skipped." %
+              (synt_tag, synt_station_group["_station_name"]))
+        return
+    if "StationXML" not in obsd_station_group:
+        print("Missing tag 'STATIONXML' from obsd_station_group %s. Skipped" %
+              (obsd_tag, obsd_station_group["_station_name"]))
+        return
+
+    try:
+        window_sta = windows[obsd_station_group["_station_name"]]
+    except Exception as exp:
+        print("No window selected for station: {}".format(exp))
+        return
+
+    observed = obsd_station_group[obsd_tag]
+    synthetic = synt_station_group[synt_tag]
+    obsd_staxml = obsd_station_group["StationXML"]
+
+    adjsrcs = calculate_and_process_adjsrc_on_stream(
+        observed, synthetic, window_sta, obsd_staxml, config, event,
+        adj_src_type, postproc_param,
+        figure_mode=figure_mode, figure_dir=figure_dir)
+
+    _final = reshape_adj(adjsrcs, obsd_staxml)
+
+    return _final
+
+
 class AdjointASDF(ProcASDFBase):
     """
     Adjoint Source ASDF
     """
+    def __init__(self, path, param, verbose=False, debug=False):
+        super(AdjointASDF, self).__init__(path, param, verbose=verbose,
+                                          debug=debug)
 
     def _validate_path(self, path):
         """
@@ -251,6 +319,7 @@ class AdjointASDF(ProcASDFBase):
                 output_ds.events = obsd_ds.events
             output_ds.flush()
             del output_ds
+
         if self.mpi_mode:
             self.comm.barrier()
 
@@ -262,6 +331,100 @@ class AdjointASDF(ProcASDFBase):
                     postproc_param=postproc_param,
                     figure_mode=figure_mode, figure_dir=figure_dir)
 
-        results = obsd_ds.process_two_files(synt_ds, adjsrc_func,
+        results = obsd_ds.process_two_files(synt_ds,
+                                            adjsrc_func,
                                             output_filename)
+
+        if self.mpi_mode:
+            self.comm.barrier()
+
         return results
+
+
+def validate_adjsrcs(adjsrcs, postproc_param, event):
+    def _get_id(adj):
+        p = adj["parameters"]
+        return "{}.{}.{}".format(p["station_id"], p["location"],
+                                 p["component"])
+
+    starttime = calculate_specfem_trace_starttime(event)
+
+    for sta, sta_info in adjsrcs.items():
+        for adj in sta_info:
+            aid = _get_id(adj)
+            params = adj["parameters"]
+
+            if len(adj["object"]) != postproc_param["interp_npts"]:
+                raise ValueError(f"Wrong adjsrc length: {aid}")
+
+            t = UTCDateTime(params["starttime"])
+            if t != starttime:
+                raise ValueError(
+                    "Wrong starttime '{}': {} {} (Right: {} {})".format(
+                        aid, t, type(t), starttime, type(starttime)))
+
+            if params["dt"] != postproc_param["interp_delta"]:
+                raise ValueError(f"Wrong delta: {aid}")
+
+
+def write_adjoint_source(adjsrcs, events, outputfn):
+    dcon = ASDFContainer()
+    if events is not None:
+        dcon.add_events(events)
+
+    dcon.add_auxiliary_data(adjsrcs)
+    dcon.write_to_file(outputfn)
+
+
+class AdjointASDFMPI(AdjointASDF):
+    def __init__(self, path, param, verbose=False, debug=False):
+        super(AdjointASDFMPI, self).__init__(path, param, verbose=verbose,
+                                             debug=debug)
+
+    def _core(self, path, param):
+        adjoint_param = param["adjoint_config"]
+        postproc_param = param["process_config"]
+
+        obsd_file = path["obsd_asdf"]
+        synt_file = path["synt_asdf"]
+        window_file = path["window_file"]
+        output_filename = path["output_file"]
+
+        self.check_input_file(obsd_file)
+        self.check_input_file(synt_file)
+        self.check_input_file(window_file)
+        self.check_output_file(output_filename)
+
+        obsd_tag = path["obsd_tag"]
+        synt_tag = path["synt_tag"]
+        figure_mode = path["figure_mode"]
+        figure_dir = path["figure_dir"]
+
+        windows = self.load_windows(window_file)
+
+        adj_src_type = adjoint_param["adj_src_type"]
+        adjoint_param.pop("adj_src_type", None)
+
+        config = load_adjoint_config(adjoint_param, adj_src_type)
+
+        #ds1 = ASDFDataSet(obsd_file, mode='r', mpi=True)
+        #events = ds1.events.copy()
+        #del ds1
+        events = self.get_events_mpi(obsd_file)
+
+        adjsrc_func = \
+            partial(adjoint_wrapper_2, config=config,
+                    obsd_tag=obsd_tag, synt_tag=synt_tag,
+                    windows=windows, event=events[0].copy(),
+                    adj_src_type=adj_src_type,
+                    postproc_param=postproc_param,
+                    figure_mode=figure_mode, figure_dir=figure_dir)
+
+        adjsrcs = process_two_asdf_mpi(obsd_file, synt_file, adjsrc_func)
+        adjsrcs = dict((k, v) for k, v in adjsrcs.items() if v is not None)
+
+        validate_adjsrcs(adjsrcs, postproc_param, events[0].copy())
+
+        write_adjoint_source(adjsrcs, events, output_filename)
+
+        return adjsrcs

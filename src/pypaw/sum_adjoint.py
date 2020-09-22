@@ -81,8 +81,10 @@ def save_adjoint_to_asdf(outputfile, events, adjoint_sources, stations):
         print("Output file exists and removed:%s" % outputfile)
         os.remove(outputfile)
 
-    ds = ASDFDataSet(outputfile, mode='a', compression=None)
+    ds = ASDFDataSet(outputfile, mode='a', compression=None, mpi=False)
+    # add quakeml
     ds.add_quakeml(events)
+    # add adjoint sources
     for adj_id in sorted(adjoint_sources):
         adj = adjoint_sources[adj_id]
         sta_tag = "%s_%s" % (adj.network, adj.station)
@@ -105,7 +107,7 @@ def check_event_information_in_asdf_files(asdf_files):
 
     check_events_consistent(asdf_events)
 
-    event_base = asdf_events[asdf_events.keys()[0]]
+    event_base = asdf_events[list(asdf_events.keys())[0]]
     origin = event_base[0].preferred_origin()
     return event_base, origin
 
@@ -178,19 +180,24 @@ class PostAdjASDF(object):
             new_adj, station_info = load_to_adjsrc(adj)
 
             channel_weight = weights[channel]["weight"]
+
             # add station information
-            try:
-                self.attach_station_to_db(station_info)
-            except Exception as err:
-                print("Failed to add station information(%s) to db due to: %s"
-                      % (channel, str(err)))
-                continue
+            #try:
+            #    self.attach_station_to_db(station_info)
+            #except Exception as err:
+            #    print("Failed to add station information(%s) to db due to: %s"
+            #          % (channel, str(err)))
+            #    continue
             # add adjoint source
-            try:
-                self.attach_adj_to_db(adj_id, new_adj, channel_weight)
-            except Exception as err:
-                print("Failed to add station adjsrc(%s) to db due to: %s"
-                      % (channel, str(err)))
+            #try:
+            #    self.attach_adj_to_db(adj_id, new_adj, channel_weight)
+            #except Exception as err:
+            #    print("Failed to add station adjsrc(%s) to db due to: %s"
+            #          % (channel, str(err)))
+
+            self.attach_station_to_db(station_info)
+            self.attach_adj_to_db(adj_id, new_adj, channel_weight)
+
             # get the component misfit values
             if _comp not in misfits:
                 misfits[_comp] = {"misfit": 0, "raw_misfit": 0}
@@ -295,6 +302,8 @@ class PostAdjASDF(object):
 
         outputfile = self.path["output_file"]
         smart_remove_file(outputfile, mpi_mode=False)
+
+        # write out to asdf
         self.dump_to_asdf(outputfile)
 
         # write out the misfit summary

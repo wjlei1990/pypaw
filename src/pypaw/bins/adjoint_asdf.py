@@ -2,7 +2,8 @@
 import matplotlib as mpl
 mpl.use('Agg')  # NOQA
 import argparse
-from pypaw import AdjointASDF
+from pypaw.adjoint import AdjointASDFMPI
+from pypaw.adjoint_serial import AdjointASDFSerial
 
 
 def main():
@@ -13,10 +14,21 @@ def main():
                         help="path file")
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help="verbose flag")
+    parser.add_argument('--serial', action='store_true',
+                        dest='serial_mode',
+                        help="processing in serial mode flag")
     args = parser.parse_args()
 
-    proc = AdjointASDF(args.path_file, args.params_file, verbose=args.verbose)
-    proc.smart_run()
+    print("user input args: ", args)
+
+    if args.serial_mode:
+        proc = AdjointASDFSerial(
+            args.path_file, args.params_file, verbose=args.verbose)
+        proc.smart_run()
+    else:
+        proc = AdjointASDFMPI(
+            args.path_file, args.params_file, verbose=args.verbose)
+        proc.smart_run()
 
 
 if __name__ == '__main__':

@@ -36,16 +36,17 @@ def add_waveform_to_asdf(ds, waveform_filelist, tag, event=None,
         except Exception as err:
             print("Error converting(%s) due to: %s" % (filename, err))
             continue
+
         if create_simple_inv:
             for tr in st:
                 sta_tag = "%s_%s" % (tr.stats.network, tr.stats.station)
                 if sta_tag not in sta_dict.keys():
                     try:
                         _sac = tr.stats.sac
-                    except:
+                    except Exception as exp:
                         raise ValueError("The original data format should be"
                                          "sac format to extract station"
-                                         "information")
+                                         "information: {}".format(exp))
                     sta_dict[sta_tag] = [tr.stats.network, tr.stats.station,
                                          _sac["stla"], _sac["stlo"],
                                          _sac["stel"], _sac["stdp"]]
@@ -114,13 +115,19 @@ def convert_to_asdf(asdf_fn, waveform_filelist, tag, quakemlfile=None,
     if os.path.exists(asdf_fn):
         raise Exception("File '%s' exists." % asdf_fn)
 
-    ds = ASDFDataSet(asdf_fn, mode='a')
+    ds = ASDFDataSet(asdf_fn, mode='a', mpi=False)
 
     # Add event
     if quakemlfile:
-        if not os.path.exists(quakemlfile):
-            raise ValueError("Quakeml file not exists:%s" % quakemlfile)
-        ds.add_quakeml(quakemlfile)
+        if isinstance(quakemlfile, str):
+            # path of quakeml file
+            if not os.path.exists(quakemlfile):
+                raise ValueError("Quakeml file not exists:%s" % quakemlfile)
+            ds.add_quakeml(quakemlfile)
+        else:
+            # obspy event object
+            ds.add_quakeml(quakemlfile)
+
         event = ds.events[0]
         if status_bar:
             drawProgressBar(1.0, "Adding Quakeml data")
@@ -200,8 +207,9 @@ def convert_from_asdf(asdf_fn, outputdir, tag=None, filetype="sac",
                 continue
             try:
                 stream, inv = ds.get_data_for_tag(station_name2, _tag)
-            except:
-                print("Error for station:", station_name2)
+            except Exception as exp:
+                print("Error for station {}: {}".format(
+                        station_name2, exp))
             if filetype == "SAC":
                 write_stream_to_sac(stream, outputdir, _tag)
             elif filetype == "MSEED":
@@ -213,8 +221,9 @@ def convert_from_asdf(asdf_fn, outputdir, tag=None, filetype="sac",
                                         % (station_name, _tag))
                 try:
                     inv.write(filename, format="STATIONXML")
-                except:
-                    print("Error creating STATIONXML: %f" % filename)
+                except Exception as exp:
+                    print("Error creating STATIONXML {}: {}".format(
+                            filename, exp))
 
     del ds
 

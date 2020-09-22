@@ -133,17 +133,22 @@ def smart_check_path(path, mpi_mode=True, comm=None):
 
 
 def smart_remove_file(filename, mpi_mode=True, comm=None):
+
     if not smart_check_path(filename, mpi_mode=mpi_mode, comm=comm):
         return
+
     if mpi_mode:
         if comm is None:
             comm = _get_mpi_comm()
         rank = comm.rank
         comm.Barrier()
         if rank == 0:
+            print("Outputfile exists and removed: {}".format(filename))
             os.remove(filename)
+            time.sleep(1.0)
         comm.Barrier()
     else:
+        print("Outputfile exists and removed: {}".format(filename))
         os.remove(filename)
 
 
@@ -192,7 +197,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args, **kwargs)
         time2 = time.time()
-        print('%s function took %0.3f s' % (f.func_name, (time2-time1)))
+        print('%s function took %0.3f s' % (f.__name__, (time2-time1)))
         return ret
     return wrap
 

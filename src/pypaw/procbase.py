@@ -12,8 +12,11 @@ and parallel I/O so they are invisible to users.
 """
 from __future__ import (absolute_import, division, print_function)
 import os
+import socket
 from mpi4py import MPI
+
 from pyasdf import ASDFDataSet
+from . import mpi_ns
 from .utils import smart_read_yaml, smart_read_json, is_mpi_env
 from .utils import smart_check_path, smart_remove_file, smart_mkdir
 
@@ -24,6 +27,8 @@ class ProcASDFBase(object):
 
         self.comm = None
         self.rank = None
+        self.size = None
+        self.mpi = None
 
         self.path = path
         self.param = param
@@ -81,14 +86,19 @@ class ProcASDFBase(object):
         :return:
         """
         self.mpi_mode = is_mpi_env()
+        hostname = socket.gethostname()
         if not self.mpi_mode:
-            raise EnvironmentError(
-                "mpi environment required for parallel run")
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.rank
-
-        size = self.comm.size
-        print("detech env:", self.rank, size)
+            print("[Host {}] None-MPI environment detected".format(hostname))
+        else:
+            comm = MPI.COMM_WORLD
+            self.comm = comm
+            self.rank = comm.rank
+            self.size = comm.size
+            self.mpi = mpi_ns(
+                comm=MPI.COMM_WORLD, rank=comm.rank, size=comm.size, MPI=MPI,
+                processor=MPI.Get_processor_name())
+            print("[Host {}] MPI environment detected: {} / {}".format(
+                    hostname, self.rank, self.size))
 
     def print_info(self, dict_obj, title=""):
         """
@@ -115,7 +125,7 @@ class ProcASDFBase(object):
                 return
             _print_subs(dict_obj, title)
 
-    def load_asdf(self, filename, mode="a"):
+    def load_asdf(self, filename, mode="r"):
         """
         Load asdf file
 
@@ -124,10 +134,45 @@ class ProcASDFBase(object):
         :return:
         """
         if self.mpi_mode:
+            print("Load asdf file {} in mpi mode: rank/size: {}/{}".format(
+                    filename, self.rank, self.size))
             return ASDFDataSet(filename, compression=None, debug=self._debug,
-                               mode=mode)
+                               mode=mode, mpi=True)
         else:
-            return ASDFDataSet(filename, mode=mode)
+            print("Load asdf file {} in none-mpi mode".format(filename))
+            return ASDFDataSet(filename, debug=self._debug, mode=mode,
+                               mpi=False)
+
+    def _get_event_preferred_origin(self, event):
+        pid = event.preferred_origin_id
+
+        res = None
+        for origin in event.origins:
+            if origin.resource_id == pid:
+                res = origin
+
+        if res is None:
+            raise ValueError("Failed to fetch preferred_origin by id")
+        return res
+
+    def get_events_mpi_2(self, asdf_fn):
+        if self.mpi.rank == 0:
+            ds = ASDFDataSet(asdf_fn, mode='r', mpi=False)
+            events = ds.events
+            del ds
+        else:
+            events = None
+
+        events = self.mpi.comm.bcast(events, root=0)
+        return events
+
+    def get_events_mpi(self, asdf_fn):
+        ds = ASDFDataSet(asdf_fn, mode='r', mpi=True)
+        events = ds.events
+        del ds
+        self.mpi.comm.barrier()
+
+        return events
 
     def check_input_file(self, filename):
         """
@@ -195,6 +240,25 @@ class ProcASDFBase(object):
 
     def _validate_param(self, param):
         pass
+
+    def gather_data_to_master(self, local_values):
+        gathered = self.mpi.comm.gather(local_values, root=0)
+
+        if isinstance(local_values, list):
+            # flattern list of list
+            results = []
+            if self.mpi.rank == 0:
+                results = [x for l in gathered for x in l]
+        elif isinstance(local_values, dict):
+            # flattern list of dict
+            results = {}
+            if self.mpi.rank == 0:
+                results = {k: v for d in gathered for k, v in d.items()}
+        else:
+            raise ValueError("unkonw type for local_values: {}".format(
+                type(local_values)))
+
+        return results
 
     def smart_run(self):
         """

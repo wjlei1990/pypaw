@@ -27,7 +27,7 @@ def dump_json(content, filename):
 
 def load_yaml(filename):
     with open(filename, 'r') as fh:
-        return yaml.load(fh)
+        return yaml.load(fh, Loader=yaml.FullLoader)
 
 
 def dump_yaml(content, filename):

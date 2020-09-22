@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-#import mpi4py
-#mpi4py.rc.recv_mprobe = False
-
-from pypaw import ProcASDF
+from pypaw.process import ProcASDFMPI
+from pypaw.process_serial import ProcASDFSerial
 
 
 def main():
@@ -15,10 +13,23 @@ def main():
                         help="path file")
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help="verbose flag")
+    parser.add_argument('--serial', action='store_true',
+                        dest='serial_mode',
+                        help="serial mode flag")
     args = parser.parse_args()
 
-    proc = ProcASDF(args.path_file, args.params_file, args.verbose)
-    proc.smart_run()
+    print("user input args:", args)
+
+    if args.serial_mode:
+        print("Processing in serial mode")
+        proc = ProcASDFSerial(args.path_file, args.params_file, args.verbose)
+        proc.smart_run()
+    else:
+        print("Processing in parallel (mpi) mode")
+        # proc = ProcASDF(args.path_file, args.params_file, args.verbose)
+        # proc.smart_run()
+        proc = ProcASDFMPI(args.path_file, args.params_file, args.verbose)
+        proc.smart_run()
 
 
 if __name__ == '__main__':

@@ -13,9 +13,9 @@ handles parallel I/O so they are invisible to users.
 from __future__ import (print_function, division, absolute_import)
 import inspect
 from functools import partial
-from pytomo3d.signal.process import process_stream
+from pytomo3d.signal.process import process_stream_2
 from .procbase import ProcASDFBase
-import pyasdf
+from .asdf_container import process_asdf_mpi
 
 
 def check_param_keywords(param):
@@ -23,7 +23,7 @@ def check_param_keywords(param):
     Check the param keywords are the same with the keywords list of
     the function of process_stream
     """
-    default_param = inspect.getargspec(process_stream).args
+    default_param = inspect.getargspec(process_stream_2).args
     default_param.remove("st")
     default_param.remove("inventory")
     if not param["remove_response_flag"]:
@@ -44,8 +44,11 @@ def process_wrapper(stream, inv, param=None):
     :param param:
     :return:
     """
+    if stream is None or inv is None:
+        return
+
     param["inventory"] = inv
-    return process_stream(stream, **param)
+    return process_stream_2(stream, **param)
 
 
 def update_param(event, param):
@@ -67,10 +70,7 @@ def update_param(event, param):
 
 class ProcASDF(ProcASDFBase):
 
-    def __init__(self, path, param, verbose=False, debug=False):
-        #ProcASDFBase.__init__(self, path, param, verbose=verbose,
-        #                      debug=debug)
-        print("__init__")
+    def __init__(self, path, param, verbose=False, debug=True):
         super(ProcASDF, self).__init__(path, param, verbose=verbose,
                                        debug=debug)
 
@@ -102,9 +102,7 @@ class ProcASDF(ProcASDFBase):
         # a incomplete asdf file, missing the "auxiliary_data"
         # part. So give it 'a' permission to add the part.
         # otherwise, it there will be errors
-        #ds = self.load_asdf(input_asdf, mode='a')
-        #print(ds)
-        ds = pyasdf.ASDFDataSet(input_asdf)
+        ds = self.load_asdf(input_asdf, mode='a')
 
         # update param based on event information
         update_param(ds.events[0], param)
@@ -114,18 +112,56 @@ class ProcASDF(ProcASDFBase):
         process_function = \
             partial(process_wrapper, param=param)
 
-        for sta in ds.waveforms.list():
-            grp = ds.waveforms[sta]
-            inv = grp.StationXML
-            st = grp[input_tag]
-            print("-----------------------------------------")
-            print(inv)
-            print(st)
-            st_new = process_function(st, inv)
-            print("--> new...")
-            print(st_new)
-
-        #tag_map = {input_tag: output_tag}
-        #ds.process(process_function, output_asdf, tag_map=tag_map)
+        tag_map = {input_tag: output_tag}
+        ds.process(process_function, output_asdf, tag_map=tag_map)
 
         del ds
+
+
+class ProcASDFMPI(ProcASDFBase):
+    def __init__(self, path, param, verbose=False, debug=False):
+        super(ProcASDFMPI, self).__init__(path, param, verbose=verbose,
+                                          debug=debug)
+
+    def _validate_path(self, path):
+        necessary_keys = ["input_asdf", "input_tag",
+                          "output_asdf", "output_tag"]
+
+        self._missing_keys(necessary_keys, path)
+
+    def _validate_param(self, param):
+        necessary_keys = ("remove_response_flag", "filter_flag", "pre_filt",
+                          "relative_starttime", "relative_endtime",
+                          "resample_flag", "sampling_rate", "rotate_flag",
+                          "sanity_check")
+
+        self._missing_keys(necessary_keys, param)
+
+    def _core(self, path, param):
+
+        input_asdf = path["input_asdf"]
+        input_tag = path["input_tag"]
+        output_asdf = path["output_asdf"]
+        output_tag = path["output_tag"]
+
+        self.check_input_file(input_asdf)
+        self.check_output_file(output_asdf, remove_flag=True)
+
+        # extract events information
+        events = self.get_events_mpi(input_asdf)
+
+        # update param based on event information
+        update_param(events[0].copy(), param)
+
+        # check final param to see if the keys are right
+        check_param_keywords(param)
+
+        process_function = \
+            partial(process_wrapper, param=param)
+
+        tag_map = {input_tag: output_tag}
+
+        process_asdf_mpi(input_asdf,
+                         output_asdf,
+                         process_function,
+                         tag_map)

@@ -31,7 +31,7 @@ def src_weights(path, param, _verbose=False):
     inputs = path["input"]
     output_file = path["output_file"]
 
-    eventlist = inputs.keys()
+    eventlist = list(inputs.keys())
     eventlist.sort()
     nevents = len(eventlist)
     print("Number of sources: %d" % nevents)

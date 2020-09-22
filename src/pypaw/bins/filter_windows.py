@@ -31,6 +31,11 @@ def check_keys(dictv, keys):
     return True
 
 
+def check_file_exists(fn):
+    if not os.path.exists(fn):
+        raise ValueError(f"Missing file: {fn}")
+
+
 def check_path(paths):
     keys = ["window_file", "station_file", "output_file", "measurement_file"]
     if not check_keys(paths, keys):
@@ -38,6 +43,10 @@ def check_path(paths):
 
     print("=" * 10 + " Path info " + "=" * 10)
     pprint(paths)
+
+    check_file_exists(paths["window_file"])
+    check_file_exists(paths["station_file"])
+    check_file_exists(paths["measurement_file"])
 
 
 def check_param(params):
@@ -107,7 +116,7 @@ def run_window_filter(paths, params, verbose=False):
     dump_json(measures_new, new_measure_file)
 
     # dump the log file
-    logfile = os.path.join(os.path.dirname(output_file), "filter.log")
+    logfile = os.path.join(os.path.dirname(output_file), "filter.log.json")
     print("Log file located at: %s" % logfile)
     dump_json(log, logfile)
 
